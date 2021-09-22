@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/keepalive
+keepalive.so
+keepalive.dylib
+keepalive.dll
+keepalive.a
+keepalive.lib
+keepalive-test-*
+*.exe
+*.o
+*.obj
+*.lst
