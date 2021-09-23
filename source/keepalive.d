@@ -1,9 +1,9 @@
 /**
- * Small utility library to ensure a reference is emplaed on the stack. If used
- * without the KeepAliveOpaqueCall version, then the performance impact should
- * be none. However, it has not been proven that merely having a dstructor is
- * enough to keep the optimizer from removing the dead store. Therefore, the
- * version exists in case that proves to be the case.
+ * Small utility library to ensure a reference is emplaed on the stack.
+ *
+ * The empty asm call is currently enough to force all current compilers to
+ * give up on trying to optimize the destructor out. If this becomes incorrect
+ * at some point, then a revisit is necessary.
  *
  * License: Boost-1.0. See LICENSE.MD
  *
@@ -13,24 +13,10 @@
  */
 module keepalive;
 
-@nogc nothrow pure @safe {
-
-version(KeepAliveOpaqueCall)
-{
-    private void _opaque() {}
-    pragma(mangle, _opaque.mangleof) extern(C) void opaque();
-}
-
 /**
  * Create a guaranteed-stack-allocated reference. While the thing itself cannot
  * be copied, it should be usable just like the reference that it wraps.
  * Because of the destructor, it is guaranteed to be put on the stack.
- *
- * If the KeepAliveOpaqueCall version is set, then a call to an opaque function which
- * does nothing is inserted into the destructor. This is a stopgap measure in
- * case a compiler has figured out it can eliminate the dead store. While this
- * might be less performant, it is better than using GC.addRoot and
- * GC.removeRoot.
  *
  * Params:
  *      val: The value to wrap. It must be a reference type.
@@ -38,7 +24,8 @@ version(KeepAliveOpaqueCall)
  *      A voldemort type that wraps the value. Using it should be no different
  *      than the original pointer, 
  */
-auto keepalive(T)(T val) if (is(T == U*, U) || is(T == class) || is(T == interface))
+@nogc nothrow @safe pure
+auto keepAlive(T)(T val) if (is(T == U*, U) || is(T == class) || is(T == interface))
 {
     static struct KeepAlive
     {
@@ -47,12 +34,10 @@ auto keepalive(T)(T val) if (is(T == U*, U) || is(T == class) || is(T == interfa
         @disable this(this);
 
         @nogc nothrow @safe pure ~this() {
-            version(KeepAliveOpaqueCall)
-                opaque();
+            asm @nogc nothrow @safe pure {}
         }
     }
     return KeepAlive(val);
-}
 }
 
 /// Note, it's not considered a hard failure for the first test to fail, as
@@ -76,7 +61,7 @@ unittest
     }
     C.dtorcalls = 0;
 
-    auto c2 = keepalive(new C);
+    auto c2 = keepAlive(new C);
     foreach(i; 0 .. 100) GC.collect;
     assert(C.dtorcalls == 0);
 }
