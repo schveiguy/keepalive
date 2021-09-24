@@ -34,7 +34,8 @@ auto keepAlive(T)(T val) if (is(T == U*, U) || is(T == class) || is(T == interfa
         @disable this(this);
 
         @nogc nothrow @safe pure ~this() {
-            asm @nogc nothrow @safe pure {}
+            version (GNU) asm @nogc nothrow @safe pure { "" :: "rm" (this._val); }
+            else asm @nogc nothrow @safe pure {}
         }
     }
     return KeepAlive(val);
